@@ -1,0 +1,8 @@
+.env
+/dataPG/
+/filestore/
+/sessions/
+*.pyc
+__pycache__/
+config/odoo.conf
+config/odoo.prod.conf

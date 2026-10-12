@@ -1,0 +1,63 @@
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: postgres
+    volumes:
+      - odoo-db-data:/var/lib/postgresql
+    networks:
+      - odoo-net
+
+  odoo-dev:
+    image: odoo:19
+    profiles:
+      - dev
+    depends_on:
+      - db
+    ports:
+      - "8069:8069"
+    command: --dev=all
+    environment:
+      - HOST=db
+      - USER=${DB_USER}
+      - PASSWORD=${DB_PASSWORD}
+    volumes:
+      # Dejamos en local SOLO la carpeta donde vas a programar (addons)
+      - ./addons:/mnt/extra-addons
+      # Configuración de Odoo (odoo.conf)
+      - ./config:/etc/odoo
+      # Le pasamos a Docker el control total de filestore y sessions
+      - odoo-web-data:/var/lib/odoo
+    networks:
+      - odoo-net
+      
+  odoo-prod:
+    image: odoo:19
+    profiles:
+      - prod
+    depends_on:
+      - db
+    ports:
+      - "127.0.0.1:8069:8069"
+    command: -c /etc/odoo/odoo.prod.conf
+    environment:
+      - HOST=db
+      - USER=${DB_USER}
+      - PASSWORD=${DB_PASSWORD}
+    volumes:
+      - ./addons:/mnt/extra-addons:ro
+      - ./config:/etc/odoo:ro
+      - odoo-web-data:/var/lib/odoo
+    restart: unless-stopped
+    networks:
+      - odoo-net
+
+volumes:
+  odoo-db-data:
+  odoo-web-data: # Nuevo volumen seguro gestionado por Docker
+
+networks:
+  odoo-net:
+    driver: bridge
