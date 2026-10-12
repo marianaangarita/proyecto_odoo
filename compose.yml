@@ -1,63 +1,90 @@
 services:
-  db:
+  # ---------- DESARROLLO ----------
+  db-dev:
     image: postgres:18
+    profiles:
+      - dev
     environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_USER: ${DEV_DB_USER}
+      POSTGRES_PASSWORD: ${DEV_DB_PASSWORD}
       POSTGRES_DB: postgres
     volumes:
       - odoo-db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DEV_DB_USER} -d postgres"]
+      interval: 5s
+      retries: 10
     networks:
-      - odoo-net
+      - net-dev
 
   odoo-dev:
     image: odoo:19
     profiles:
       - dev
     depends_on:
-      - db
+      db-dev:
+        condition: service_healthy
     ports:
       - "8069:8069"
     command: --dev=all
     environment:
-      - HOST=db
-      - USER=${DB_USER}
-      - PASSWORD=${DB_PASSWORD}
+      - HOST=db-dev
+      - USER=${DEV_DB_USER}
+      - PASSWORD=${DEV_DB_PASSWORD}
     volumes:
-      # Dejamos en local SOLO la carpeta donde vas a programar (addons)
       - ./addons:/mnt/extra-addons
-      # Configuración de Odoo (odoo.conf)
       - ./config:/etc/odoo
-      # Le pasamos a Docker el control total de filestore y sessions
       - odoo-web-data:/var/lib/odoo
     networks:
-      - odoo-net
-      
+      - net-dev
+
+  # ---------- PRODUCCIÓN ----------
+  db-prod:
+    image: postgres:18
+    profiles:
+      - prod
+    environment:
+      POSTGRES_USER: ${PROD_DB_USER}
+      POSTGRES_PASSWORD: ${PROD_DB_PASSWORD}
+      POSTGRES_DB: postgres
+    volumes:
+      - prod-db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PROD_DB_USER} -d postgres"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - net-prod
+
   odoo-prod:
     image: odoo:19
     profiles:
       - prod
     depends_on:
-      - db
+      db-prod:
+        condition: service_healthy
     ports:
       - "127.0.0.1:8069:8069"
     command: -c /etc/odoo/odoo.prod.conf
     environment:
-      - HOST=db
-      - USER=${DB_USER}
-      - PASSWORD=${DB_PASSWORD}
+      - HOST=db-prod
+      - USER=${PROD_DB_USER}
+      - PASSWORD=${PROD_DB_PASSWORD}
     volumes:
       - ./addons:/mnt/extra-addons:ro
       - ./config:/etc/odoo:ro
-      - odoo-web-data:/var/lib/odoo
+      - prod-web-data:/var/lib/odoo
     restart: unless-stopped
     networks:
-      - odoo-net
+      - net-prod
 
 volumes:
-  odoo-db-data:
-  odoo-web-data: # Nuevo volumen seguro gestionado por Docker
+  odoo-db-data:    # BD de desarrollo (conserva la que ya tienes)
+  odoo-web-data:   # filestore/sessions de desarrollo
+  prod-db-data:    # BD de producción
+  prod-web-data:   # filestore/sessions de producción
 
 networks:
-  odoo-net:
-    driver: bridge
+  net-dev:
+  net-prod:

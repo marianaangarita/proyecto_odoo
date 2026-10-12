@@ -1,0 +1,16 @@
+[options]
+admin_passwd = cambia_esto
+addons_path = /mnt/extra-addons
+data_dir = /var/lib/odoo
+
+; Producción: ocultamos el gestor de bases de datos
+list_db = False
+proxy_mode = True
+workers = 2
+log_level = warn
+
+; Producción: solo puede usar esta base de datos
+db_name = odoo_prod
+dbfilter = ^odoo_prod$
+
+http_interface = 0.0.0.0
